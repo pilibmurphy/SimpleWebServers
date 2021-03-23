@@ -1,6 +1,6 @@
 FROM ruby:latest
 
-RUN gem install rack
+RUN gem install addressable json
 
 COPY ./app /app
 

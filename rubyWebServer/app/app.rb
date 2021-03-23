@@ -1,97 +1,50 @@
-# http_server.rb
+require_relative 'modulo'
 require 'socket'
-require 'rack'
+require "addressable/uri"
+require 'json'
 
-class Repsponce
-  
-  def call(env)
-    [200, {"Content-Type" => "text/plain"}, "hi"]
-  end
-end
-
-app = Repsponce.new
 server = TCPServer.new 5000
 
+mod = Modulo.new
+
 while session = server.accept
-  request = session.gets
-  puts request
-  method, full_path = request.split(' ')
-  path, query = full_path.split('?')
-  status, headers, body = app.call({
-    'REQUEST_METHOD' => method,
-    'PATH_INFO' => path,
-    'QUERY_STRING' => query
-  })
   
-  print query
-  if query.include?("&")
-    qryArray = query.split("&")
-    x = ""
-    y = ""
-    
-    #if array not of size two don't bother
-    if qryArray.length() == 2
-      if qryArray[0].include?("x=")
-        #remove x=
-        x = qryArray[0].gsub("x=", "")
-        print(x + "\n")
-      else
-        if qryArray[1].include?("x=")
-          #remove x=
-          x = qryArray[1].gsub("x=", "")
-        print(x + "\n")
-        end
-      end
+  request = session.gets
+  headers = {"Content-Type" => "application/json", "Access-Control" => "*"}
 
-      ## this is just a repeat of code move this into a method
+  begin
 
-      if qryArray[0].include?("y=")
-        #remove y=
-        y = qryArray[0].gsub("y=", "")
-        print(y + "\n")
-      else
-        if qryArray[1].include?("y=")
-          #remove y=
-          y = qryArray[1].gsub("y=", "")
-          print(y + "\n")
-        end
-      end
+  method, full_path = request.split(' ')
+  uri = Addressable::URI.parse(full_path)
+  uri.query_values
+  x = uri.query_values['x']
+  y = uri.query_values['y']
+  ans = mod.modulo(x.to_i, y.to_i)
+  equation = "%d modulo %d = %d" % [x,y,ans]
+  data = {'Errors' => false, 'Equation' => equation, 'Answer' => ans}
+  responce = data.to_json
+  status = 200
 
-    end
+  rescue
+
+    #Set the data to return a failed json and set the status code to 400
+    data = {'Error' => true, 'Equation' => nil, 'Answer' => nil}
+    responce = data.to_json
+    status = 400
+
   end
 
-  
-  #if sucess = true()
-  intX = x.to_i
-  intY = y.to_i
-
-  ans = intX + intY
-  body = ans.to_s
-  
-
-  #split at the &
-  #make a mthod called removed
-  #if contains y= or x=
-  #remove y= or x=
-
-  #return the numbers
+  #Send the repsonce
 
   session.print "HTTP/1.1 #{status}\r\n"
   headers.each do |key, value|
     session.print "#{key}: #{value}\r\n"
   end
   session.print "\r\n"
-  session.print body
+  session.print responce
   session.close
 end
 
-class Div
-  
-end
-
-
-# if env[QUERY_STRING].include?("flip")
-#   message = hello
-# else
-#   message = hi
-# end
+#gem install socket
+#gem install addressable
+#gem install json
